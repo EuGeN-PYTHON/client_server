@@ -1,10 +1,14 @@
+import logging
 import sys
 import json
 import socket
 import time
+from log import client_log_config
 from variables import DEFAULT_IP_ADDRESS, DEFAULT_PORT
 
 from base_commands import get_message, send_message
+
+client_log = logging.getLogger('client_app')
 
 
 class Client:
@@ -24,10 +28,12 @@ class Client:
                 'account_name': account_name
             }
         }
+        client_log.debug(f'Создано сообщение presence для пользователя: {account_name}')
         return data
 
     @staticmethod
     def response_analyze(msg):
+        client_log.debug(f'Соответствие сообщения от сервера: {msg}')
         if 'response' in msg:
             if msg['response'] == 200:
                 return '200 : OK'
@@ -37,27 +43,28 @@ class Client:
     @classmethod
     def base(cls):
         # client.py 192.168.1.2 8079
-        try:
-            server_address = sys.argv[1]
-            server_port = int(sys.argv[2])
-            if server_port < 1024 or server_port > 65535:
-                raise ValueError
-        except IndexError:
-            server_address = cls.host
-            server_port = cls.port
-        except ValueError:
-            print('В качестве порта может быть указано только число в диапазоне от 1024 до 65535.')
+
+        server_address = sys.argv[1]
+        server_port = int(sys.argv[2])
+        if server_port < 1024 or server_port > 65535:
+            client_log.critical(f'Невозможно войти с'
+                                f' номером порта: {server_port}. '
+                                f'Допустимы порты с 1024 до 65535. Прервано.')
             sys.exit(1)
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((server_address, server_port))
-        message_to_server = cls.get_presence()
-        send_message(s, message_to_server)
+        client_log.info(f'Запущен клиент с парам.: {server_address}, порт: {server_port}')
+
         try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((server_address, server_port))
+            message_to_server = cls.get_presence()
+            send_message(s, message_to_server)
             answer = cls.response_analyze(get_message(s))
-            print(answer)
+            client_log.info(f'Принят ответ от сервера {answer}')
+            # print(answer)
         except (ValueError, json.JSONDecodeError):
-            print('Не удалось декодировать сообщение сервера.')
+            client_log.error('Не удалось декодировать полученную Json строку.')
+            # print('Не удалось декодировать сообщение сервера.')
 
 
 if __name__ == '__main__':
