@@ -2,13 +2,19 @@ import socket
 import sys
 import json
 import logging
-from log import server_log_config
+import os
+
 from variables import MAX_CONNECTIONS, DEFAULT_PORT
 from base_commands import get_message, send_message
+from log_deco import Log
+
+sys.path.append(os.path.join(os.getcwd(), '..'))
+from log import server_log_config
 
 app_log = logging.getLogger('server_app')
 
 
+@Log()
 class Server:
     conn = MAX_CONNECTIONS
     port = DEFAULT_PORT
@@ -31,11 +37,12 @@ class Server:
     @classmethod
     def base(cls):
         # server.py -p 8079 -a 192.168.1.2
-        listen_server = int(sys.argv[sys.argv.index('-a') + 1])
+        listen_server = sys.argv[sys.argv.index('-a') + 1]
+        # listen_server = ''
         if '-p' in sys.argv:
             input_port = int(sys.argv[sys.argv.index('-p') + 1])
         else:
-            input_port = cls.port
+            input_port = ''
         if input_port < 1024 or input_port > 65535:
             app_log.critical(f'Невозможно войти с'
                              f' номером порта: {input_port}. '
@@ -75,4 +82,5 @@ class Server:
 
 
 if __name__ == '__main__':
-    Server.base()
+    srv = Server()
+    srv.base()

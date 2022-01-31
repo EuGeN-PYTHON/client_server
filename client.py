@@ -3,14 +3,20 @@ import sys
 import json
 import socket
 import time
-from log import client_log_config
-from variables import DEFAULT_IP_ADDRESS, DEFAULT_PORT
+import os
 
+from variables import DEFAULT_IP_ADDRESS, DEFAULT_PORT
+from log_deco import Log
 from base_commands import get_message, send_message
+
+sys.path.append(os.path.join(os.getcwd(), '..'))
+from log import client_log_config
+
 
 client_log = logging.getLogger('client_app')
 
 
+@Log()
 class Client:
     host = DEFAULT_IP_ADDRESS
     port = DEFAULT_PORT
@@ -68,4 +74,5 @@ class Client:
 
 
 if __name__ == '__main__':
-    Client.base()
+    clnt = Client()
+    clnt.base()
