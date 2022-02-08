@@ -15,7 +15,7 @@ from log import client_log_config
 client_log = logging.getLogger('client_app')
 
 
-@Log()
+# @Log()
 class Client:
     host = DEFAULT_IP_ADDRESS
     port = DEFAULT_PORT
@@ -98,6 +98,7 @@ class Client:
         client_log.info(f'Запущен клиент с парам.: {server_address}, порт: {server_port}')
 
         try:
+
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((server_address, server_port))
             message_to_server = cls.get_presence()
@@ -105,9 +106,14 @@ class Client:
             answer = cls.response_analyze(get_message(s))
             client_log.info(f'Принят ответ от сервера {answer}')
             # print(answer)
-        except (ValueError, json.JSONDecodeError):
+        except json.JSONDecodeError:
             client_log.error('Не удалось декодировать полученную Json строку.')
-            # print('Не удалось декодировать сообщение сервера.')
+            sys.exit(1)
+        except ConnectionRefusedError:
+            client_log.critical(
+                f'Не удалось подключиться к серверу {server_address}:{server_port}, '
+                f'конечный компьютер отверг запрос на подключение.')
+            sys.exit(1)
         else:
             if client_mode == 'send':
                 print('Режим работы - отправка сообщений.')

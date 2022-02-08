@@ -15,8 +15,11 @@ from log import server_log_config
 
 app_log = logging.getLogger('server_app')
 
+clients = []
+messages = []
 
-@Log()
+
+# @Log()
 class Server:
     conn = MAX_CONNECTIONS
     port = DEFAULT_PORT
@@ -33,16 +36,15 @@ class Server:
             send_message(client, {'response': 200})
             return
         elif 'action' in msg and msg['action'] == 'message' and 'time' in msg and \
-            'mess_text' in msg:
-            msg_lst.append(msg['account_name'], msg['mess_text'])
-            return
+                'mess_text' in msg:
+            msg_lst.append((msg['account_name'], msg['mess_text']))
         else:
+            print('я тут')
             send_message(client, {
                 'response': 400,
                 'error': 'Bad Request'
             })
             return
-
 
     @classmethod
     def base(cls):
@@ -74,8 +76,8 @@ class Server:
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((address_ip, input_port))
-        s.listen(MAX_CONNECTIONS)
         s.settimeout(0.5)
+        s.listen(MAX_CONNECTIONS)
 
         clients = []
         messages = []
@@ -113,20 +115,17 @@ class Server:
                     recv_data_lst, send_data_lst, err_lst = select.select(clients, clients, [], 0)
             except OSError:
                 pass
-
-            # принимаем сообщения и если там есть сообщения,
-            # кладём в словарь, если ошибка, исключаем клиента.
             if recv_data_lst:
                 for client_with_message in recv_data_lst:
                     try:
                         cls.check_data_client(get_message(client_with_message),
                                                messages, client_with_message)
+                        app_log.info(f'Клиент {client_with_message.getpeername()} отправляет сообщение.')
                     except:
                         app_log.info(f'Клиент {client_with_message.getpeername()} '
                                      f'отключился от сервера.')
                         clients.remove(client_with_message)
 
-            # Если есть сообщения для отправки и ожидающие клиенты, отправляем им сообщение.
             if messages and send_data_lst:
                 message = {
                     'action': 'message',

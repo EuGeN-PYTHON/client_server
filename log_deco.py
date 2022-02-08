@@ -19,3 +19,11 @@ class Log:
                      f'Вызов из функции {inspect.stack()[1][3]}', stacklevel=2)
             return result
         return to_log
+
+if sys.argv[0].find('client') == -1:
+    # если не клиент то сервер!
+    LOGGER = logging.getLogger('server')
+else:
+    # ну, раз не сервер, то клиент
+    LOGGER = logging.getLogger('client')
+
