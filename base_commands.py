@@ -1,0 +1,30 @@
+"""Утилиты"""
+
+import json
+from variables import MAX_PACKAGE_LENGTH, ENCODING
+from log_deco import Log
+
+class NonDictInputError(Exception):
+    """Исключение - аргумент функции не словарь"""
+    def __str__(self):
+        return 'Аргумент функции должен быть словарём.'
+
+@Log()
+def get_message(client):
+    encoded_response = client.recv(MAX_PACKAGE_LENGTH)
+    if isinstance(encoded_response, bytes):
+        json_response = encoded_response.decode(ENCODING)
+        response = json.loads(json_response)
+        if isinstance(response, dict):
+            return response
+        raise ValueError
+    raise ValueError
+
+
+@Log()
+def send_message(sock, message):
+    if not isinstance(message, dict):
+        raise NonDictInputError
+    js_message = json.dumps(message)
+    encoded_message = js_message.encode(ENCODING)
+    sock.send(encoded_message)
