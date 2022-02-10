@@ -21,7 +21,7 @@ def get_message(client):
 @Log()
 def send_message(sock, message):
     if not isinstance(message, dict):
-        raise NonDictInputError
+        raise "Не словарь"
     js_message = json.dumps(message)
     encoded_message = js_message.encode(ENCODING)
     sock.send(encoded_message)

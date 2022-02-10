@@ -19,7 +19,7 @@ clients = []
 messages = []
 
 
-# @Log()
+@Log()
 class Server:
     conn = MAX_CONNECTIONS
     port = DEFAULT_PORT
@@ -29,22 +29,49 @@ class Server:
         self.port = port
 
     @staticmethod
-    def check_data_client(msg, msg_lst, client):
+    def check_data_client(msg, msg_lst, client, clients, name_soc):
         app_log.debug(f'проверка сообщения от клиента: {msg}')
         if 'action' in msg and msg['action'] == 'presence' and 'time' in msg and \
-                'user' in msg and msg['user']['account_name'] == 'Guest':
-            send_message(client, {'response': 200})
+                'user' in msg:
+            if msg['user']['account_name'] not in name_soc.keys():
+                name_soc[msg['user']['account_name']] = client
+                send_message(client, {'response': 200})
+            else:
+                send_message(client, {
+                    'response': 400,
+                    'error': 'Имя занято'})
+                clients.remove(client)
+                client.close()
             return
-        elif 'action' in msg and msg['action'] == 'message' and 'time' in msg and \
-                'mess_text' in msg:
-            msg_lst.append((msg['account_name'], msg['mess_text']))
+        elif 'action' in msg and msg['action'] == 'message' and 'to' in msg \
+                and 'time' in msg and 'from' in msg and 'mess_text' in msg:
+            msg_lst.append(msg)
+            return
+        elif 'action' in msg and msg['action'] == 'exit' and 'account_name' in msg:
+            clients.remove(name_soc[msg['account_name']])
+            name_soc[msg['account_name']].close()
+            del name_soc[msg['account_name']]
+            return
         else:
-            print('я тут')
             send_message(client, {
                 'response': 400,
-                'error': 'Bad Request'
+                'error': 'Запрос не корректен'
             })
             return
+
+    @staticmethod
+    def process_message(message, name_soc, listen_socks):
+
+        if message['to'] in name_soc and name_soc[message['to']] in listen_socks:
+            send_message(name_soc[message['to']], message)
+            app_log.info(f'Отправлено сообщение пользователю {message["to"]} '
+                         f'от пользователя {message["from"]}.')
+        elif message["to"] in name_soc and name_soc[message["to"]] not in listen_socks:
+            raise ConnectionError
+        else:
+            app_log.error(
+                f'Пользователь {message["to"]} не зарегистрирован на сервере, '
+                f'отправка сообщения невозможна.')
 
     @classmethod
     def base(cls):
@@ -82,6 +109,7 @@ class Server:
         clients = []
         messages = []
 
+        name_soc = dict()
         # while True:
         #     client, client_address = s.accept()
         #     app_log.info(f'Установлено соедение с адресом: {client_address}')
@@ -119,27 +147,35 @@ class Server:
                 for client_with_message in recv_data_lst:
                     try:
                         cls.check_data_client(get_message(client_with_message),
-                                               messages, client_with_message)
+                                              messages, client_with_message, clients, name_soc)
                         app_log.info(f'Клиент {client_with_message.getpeername()} отправляет сообщение.')
                     except:
                         app_log.info(f'Клиент {client_with_message.getpeername()} '
                                      f'отключился от сервера.')
                         clients.remove(client_with_message)
+            for i in messages:
+                try:
+                    cls.process_message(i, name_soc, send_data_lst)
+                except Exception:
+                    app_log.info(f"Связь с клиентом с именем {i['to']} была потеряна")
+                    clients.remove(name_soc[i['to']])
+                    del name_soc[i['to']]
+            messages.clear()
 
-            if messages and send_data_lst:
-                message = {
-                    'action': 'message',
-                    'sender': messages[0][0],
-                    'time': time.time(),
-                    'mess_text': messages[0][1]
-                }
-                del messages[0]
-                for waiting_client in send_data_lst:
-                    try:
-                        send_message(waiting_client, message)
-                    except:
-                        app_log.info(f'Клиент {waiting_client.getpeername()} отключился от сервера.')
-                        clients.remove(waiting_client)
+            # if messages and send_data_lst:
+            #     message = {
+            #         'action': 'message',
+            #         'sender': messages[0][0],
+            #         'time': time.time(),
+            #         'mess_text': messages[0][1]
+            #     }
+            #     del messages[0]
+            #     for waiting_client in send_data_lst:
+            #         try:
+            #             send_message(waiting_client, message)
+            #         except:
+            #             app_log.info(f'Клиент {waiting_client.getpeername()} отключился от сервера.')
+            #             clients.remove(waiting_client)
 
 
 if __name__ == '__main__':
